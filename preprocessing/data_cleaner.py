@@ -246,7 +246,7 @@ def _spinner(stop_event) -> None:
             sys.stdout.write(f'\r{char} Ejecutando...')  # Mostrar el carácter del spinner
             sys.stdout.flush()
             time.sleep(0.1)
-    sys.stdout.write('\Procesado de datos completado.          \n')  # Mensaje cuando termina el proceso
+    sys.stdout.write('\rProcesado de datos completado.          \n')  # Mensaje cuando termina el proceso
 
 # Clase principal para el procesamiento de datos
 class data_preprocessing():
