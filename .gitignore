@@ -1,0 +1,7 @@
+
+# Generated Files
+output/*
+Data/*
+
+# Cache
+__pycache__

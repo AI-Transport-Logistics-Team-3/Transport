@@ -1,11 +1,27 @@
-import sys
-import threading
-import time
-from typing import Iterator
-import pandas as pd
+# data_preprocessing.py
+#
+# Autor: Gerard Lahuerta Martín
+# GitHub: @Gerard-Lahuerta
+# Fecha de creación: 18-01-2025
+# Descripción: Este script realiza un preprocesamiento de datos de un archivo Excel en concreto: "Delivery truck trip data.xlsx".
+#
+# Dependencias:
+# - pandas
+# - numpy
+# - openpyxl
+#
+# Nota: Este código puede ser importado y utilizado en otros archivos Python.
+
 import os
+import time
+import threading
+import sys
+
 import numpy as np
+import pandas as pd
+
 from datetime import datetime
+from typing import Iterator
 
 # Constantes de entrada, salida, y formato de datos
 INPUT = "Data"
@@ -230,7 +246,7 @@ def _spinner(stop_event) -> None:
             sys.stdout.write(f'\r{char} Ejecutando...')  # Mostrar el carácter del spinner
             sys.stdout.flush()
             time.sleep(0.1)
-    sys.stdout.write('\rProceso completado.          \n')  # Mensaje cuando termina el proceso
+    sys.stdout.write('\Procesado de datos completado.          \n')  # Mensaje cuando termina el proceso
 
 # Clase principal para el procesamiento de datos
 class data_preprocessing():
