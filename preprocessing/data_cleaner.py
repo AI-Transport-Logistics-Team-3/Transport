@@ -45,8 +45,27 @@ def change_longitude_altitude(df:pd.DataFrame) -> pd.DataFrame:
                 df.drop(c, inplace=True, axis = 1)
     return df
 
+def _binary_encoding(reg: pd.Series) -> pd.Series:
+    return reg.apply(lambda x: 0 if pd.isna(x) else 1)
+
+def _label_encoding(reg: pd.Series) -> pd.Series:
+    return reg.astype('category').cat.codes.nunique()
+
+def _one_hotter_encoding(df: pd.DataFrame, col:str) -> pd.DataFrame:
+    return pd.get_dummies(df, columns=[col])
+
 def change_categoricall_to_numerical(df:pd.DataFrame) -> pd.DataFrame:
-    pass
+    for (c, t) in df.dtypes.items():
+        if t == STRING_TYPE:
+            if df[c].nunique() == 1:
+                df[c] = _binary_encoding(df[c])
+            elif df[c].nunique() == 2:
+                df[c] = _label_encoding(df[c])
+            else:
+                df = _one_hotter_encoding(df, c)
+    df.columns = df.columns.str.rstrip()
+    df.columns = df.columns.str.replace(' ', '_')
+    return df
 
 
 if __name__ == '__main__':
@@ -54,5 +73,6 @@ if __name__ == '__main__':
     df = delete_unnecesary_information(df)
     df = change_to_datetime(df)
     df = change_longitude_altitude(df)
+    df = change_categoricall_to_numerical(df)
     print(df.head())
 
