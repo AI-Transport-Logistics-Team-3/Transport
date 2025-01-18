@@ -14,9 +14,9 @@ def excel_to_csv(dataset_file_path:str, file_name:str) -> pd.DataFrame:
     return df
 
 def delete_unnecesary_information(df:pd.DataFrame) -> pd.DataFrame:
-    df = df.drop(["GpsProvider", "BookingID", "vehicle_no", "Origin_Location", "Destination_Location",
+    df.drop(["GpsProvider", "BookingID", "vehicle_no", "Origin_Location", "Destination_Location",
              "Current_Location", "DestinationLocation", "OriginLocation_Code", "Driver_MobileNo",
-             "DestinationLocation_Code", "customerNameCode", "supplierNameCode"], axis = 1)
+             "DestinationLocation_Code", "customerNameCode", "supplierNameCode"], inplace=True, axis = 1)
     return df
 
 def _to_timestamp(dates:list[datetime]):
@@ -34,19 +34,25 @@ def change_to_datetime(df:pd.DataFrame) -> pd.DataFrame:
             df[c] = np.array([ i for i in _to_timestamp(df[c].to_list())])
     return df
 
-def categorical_to_discret_values(df:pd.DataFrame) -> pd.DataFrame:
+def change_longitude_altitude(df:pd.DataFrame) -> pd.DataFrame:
     for (c, t) in df.dtypes.items():
-        print(c, t)
         if t == STRING_TYPE:
-            print(c)
-            print( c, df[c].dropna().apply(lambda x: "," in x).all() )
-            #exit()
+            if df[c].dropna().str.contains(',').all():
+                col_name = c.split("_")[0]
+                df[[f'{col_name}_latitude', f'{col_name}_longitude']] = df[c].str.split(',', expand=True)
+                df[f'{col_name}_latitude'] = pd.to_numeric(df[f'{col_name}_latitude'])
+                df[f'{col_name}_longitude'] = pd.to_numeric(df[f'{col_name}_longitude'])
+                df.drop(c, inplace=True, axis = 1)
+    return df
 
+def change_categoricall_to_numerical(df:pd.DataFrame) -> pd.DataFrame:
+    pass
 
 
 if __name__ == '__main__':
     df = excel_to_csv("Data/Delivery truck trip data.xlsx", "Dataset")
     df = delete_unnecesary_information(df)
     df = change_to_datetime(df)
-    categorical_to_discret_values(df)
+    df = change_longitude_altitude(df)
+    print(df.head())
 
