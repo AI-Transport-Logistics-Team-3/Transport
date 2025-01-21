@@ -347,7 +347,7 @@ class data_preprocessing():
         return self.original.iloc[index]
     
     # Función interna para verificar el formato de archivo
-    def _check_format(name: str, format: str, dir: str):
+    def _check_format(self, name: str, format: str, dir: str):
         """
         Verifica si el formato del archivo es válido y genera la ruta completa del archivo.
 
