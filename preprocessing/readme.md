@@ -19,6 +19,7 @@ Para ejecutar el script, necesitarás tener las siguientes dependencias instalad
 - `pandas`
 - `numpy`
 - `openpyxl` (para leer archivos Excel)
+- `kagglehub` (para descargar datasets de la base de datos de Kaggle)
 
 Instalación de dependencias:
 
