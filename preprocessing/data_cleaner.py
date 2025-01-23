@@ -9,6 +9,7 @@
 # - pandas
 # - numpy
 # - openpyxl
+# - kagglehub
 #
 # Nota: Este código puede ser importado y utilizado en otros archivos Python.
 
@@ -23,11 +24,41 @@ import pandas as pd
 from datetime import datetime
 from typing import Iterator
 
+import kagglehub
+import shutil
+
 # Constantes de entrada, salida, y formato de datos
 INPUT = "Data"
 OUTPUT = "output"
 STRING_TYPE = "object"
 DATASET = "Delivery truck trip data.xlsx"
+DOWNLOAD = "ramakrishnanthiyagu/delivery-truck-trips-data"
+
+
+def _make_directory(directory: str) -> None:
+    """
+    Crea el directorio indicado si no existe
+
+    Parameter:
+    - directory (str): carpeta a crear
+    """
+    if not os.path.exists(directory): os.makedirs(name=directory)
+
+def _download_dataset(input:str = INPUT, download:str = DOWNLOAD, dataset:str = DATASET) -> None:
+    """
+    Descarga el dataset indicado de la base de datos de Kaggle y lo mueve al directorio especificado.
+
+    Parameters:
+        input (str): Ruta relativa del directorio donde se almacenará el dataset.
+        download (str): Nombre o identificador del dataset para descargar (proporcionado por `kagglehub`).
+        dataset (str): Nombre del archivo o carpeta que representa el dataset descargado.
+    """
+    _make_directory(input)
+    # Download latest version
+    ruta_destino = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), input)
+    if os.path.exists(ruta_destino): return
+    ruta_origen = os.path.join(kagglehub.dataset_download(download), dataset)
+    shutil.move(ruta_origen, ruta_destino)
 
 # Función para convertir un archivo Excel a CSV y opcionalmente guardarlo
 def _excel_to_csv(dataset_file_path: str, file_name: str = "Dataset", save: bool = False) -> pd.DataFrame:
@@ -269,7 +300,7 @@ class data_preprocessing():
     - save_original_dataset: Guarda el DataFrame original en un archivo.
     """
 
-    def __init__(self, input: str = INPUT, dataset: str = DATASET, file_name: str = "Dataset") -> None:
+    def __init__(self, input: str = INPUT, dataset: str = DATASET, file_name: str = "Dataset", download: str = DOWNLOAD) -> None:
         """
         Inicializa la clase y comienza el procesamiento de datos.
 
@@ -277,6 +308,7 @@ class data_preprocessing():
         - input (str): Carpeta de entrada donde se encuentra el archivo de datos.
         - dataset (str): Nombre del archivo de datos a procesar.
         - file_name (str): Nombre del archivo para guardar el resultado (opcional).
+        - download (str): Nombre del archivo que descargar de la base de datos de Kaggle (opcional).
 
         Este constructor inicia un hilo para el spinner de carga y realiza el procesamiento 
         de los datos a través de varias etapas (carga, limpieza, conversión y normalización).
@@ -287,6 +319,9 @@ class data_preprocessing():
         spinner_thread = threading.Thread(target=_spinner, args=(stop_event,))
         spinner_thread.start()
         
+        # Descarga del dataset des de Kaggle
+        _download_dataset(input=input, download=download, dataset=dataset)
+
         # Procesamiento de datos (simulado aquí con una secuencia de operaciones)
         df = _excel_to_csv(os.path.join(input, dataset), file_name)  # Cargar el dataset
         self.original = df.copy()  # Guardar el dataset original
@@ -347,7 +382,7 @@ class data_preprocessing():
         return self.original.iloc[index]
     
     # Función interna para verificar el formato de archivo
-    def _check_format(name: str, format: str, dir: str):
+    def _check_format(self, name: str, format: str, dir: str):
         """
         Verifica si el formato del archivo es válido y genera la ruta completa del archivo.
 
@@ -419,3 +454,4 @@ if __name__ == '__main__':
     df = dp.get_normaliced_dataset()  # Obtener el dataset normalizado
     subset = df[df["supplierID_999"] == True]  # Filtrar por una condición
     original_data = dp.get_original_data(subset.index)  # Obtener los datos originales correspondientes
+    dp.save_preprocessed_dataset(name="procesed")
