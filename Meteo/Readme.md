@@ -124,7 +124,7 @@ print(result)
 
 ## Open-Meteo: Información General
 
-Open-Meteo es un servicio gratuito que proporciona datos meteorológicos de alta calidad mediante una API REST. Se centra en ofrecer datos de pronósticos y archivos históricos .
+[Open-Meteo](https://open-meteo.com/) es un servicio gratuito que proporciona datos meteorológicos de alta calidad mediante una API REST. Se centra en ofrecer datos de pronósticos y archivos históricos .
 
 ### API de Pronósticos (`https://api.open-meteo.com/v1/forecast`)
 
@@ -147,7 +147,6 @@ Ambas APIs permiten personalizar la consulta mediante parámetros como:
 - Fecha de inicio y fin
 - Zona horaria
 
-[Open-Meteo](https://open-meteo.com/).
 
 ---
 
