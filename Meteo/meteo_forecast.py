@@ -12,8 +12,6 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from math import radians, sin, cos, sqrt, atan2
 
-
-
 class MeteoData:
     API = "https://api.open-meteo.com/v1/forecast"
     API_ARCHIVE = "https://archive-api.open-meteo.com/v1/archive"
