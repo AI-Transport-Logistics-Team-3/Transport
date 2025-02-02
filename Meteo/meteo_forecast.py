@@ -239,14 +239,27 @@ class MeteoData:
                         if self._get_existing(row,result_list2):
                                self._get_meteo_info(row,result_list2)  
             
-            if result_list2:
-                if result_list1[0]['weather_code'] > result_list2[0]['weather_code']: 
-                    result_list.append(result_list1[0])  
-                else:
-                    result_list.append(result_list2[0])
-            else:
-                result_list.append(result_list1[0]) 
+            # if result_list2: #si error??
+            #     if result_list1[0]['weather_code'] > result_list2[0]['weather_code']: 
+            #         result_list.append(result_list1[0])  
+            #     else:
+            #         result_list.append(result_list2[0])
+            # else:
+            #     result_list.append(result_list1[0]) 
                 
+            # result = max( filter(None, [result_list1[0] if result_list1 else None, result_list2[0] if result_list2 else None]),
+            #                     key=lambda x: x["weather_code"],
+            #                     default=None
+            #                 )
+            # if result is not None: result_list.append(result_list1[0])
+            if result_list1 or result_list2:  # Verifica si alguna lista tiene valores
+                if result_list1 and result_list2:  # Si ambas listas tienen valores
+                    result = max(result_list1[0], result_list2[0], key=lambda x: x["weather_code"])
+                else:  # Si solo una lista tiene valores
+                    result = result_list1[0] if result_list1 else result_list2[0]
+
+                result_list.append(result)  # Añade el mejor resultado a result_list
+    
         self._save_dataset()
 
         result_dataframe = pd.DataFrame(result_list)
