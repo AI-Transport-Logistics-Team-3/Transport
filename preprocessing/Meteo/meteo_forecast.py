@@ -7,16 +7,21 @@ import openmeteo_requests
 import requests_cache
 import pandas as pd
 import os
+
 from retry_requests import retry
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from math import radians, sin, cos, sqrt, atan2
+from tqdm import tqdm
 
-class MeteoData:
+class MeteoDataProcessor:
+    pass
+
+class MeteoData(MeteoDataProcessor):
     API = "https://api.open-meteo.com/v1/forecast"
     API_ARCHIVE = "https://archive-api.open-meteo.com/v1/archive"
     DATASET_NAME = "meteo_dataset.csv"
-    DATASET_PATH = "Meteo\\Dataset"
+    DATASET_PATH = "Data"
     WMO_CODES = "wmo_code_table.csv"
     DIST_ROUTE_KM = 100
     TODAY = datetime.now()
@@ -37,14 +42,14 @@ class MeteoData:
         self.client = openmeteo_requests.Client(session=self.retry_session)
 
         self.current_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        self.dataset_path = os.path.join(self.current_path,self.DATASET_PATH, self.DATASET_NAME)
+        self.dataset_path = os.path.join(self.DATASET_PATH, self.DATASET_NAME)
 
         if os.path.exists(self.dataset_path):
             self.dataset = pd.read_csv(self.dataset_path)
         else:
             self.dataset = pd.DataFrame(columns=["latitude", "longitude", "startdate", "enddate", "weather_code", "temperature_max","temperature_min"])
 
-        wmo_path = os.path.join(self.current_path,self.DATASET_PATH, self.WMO_CODES)
+        wmo_path = os.path.join(self.DATASET_PATH, self.WMO_CODES)
         self.wmo_codes = pd.read_csv(wmo_path, sep=';')
         
         self.errors = pd.DataFrame(columns=["ID","Error"])
@@ -55,7 +60,7 @@ class MeteoData:
         """
         Save the dataset to a CSV file.
         """
-        os.makedirs(os.path.join(self.current_path,self.DATASET_PATH), exist_ok=True)
+        os.makedirs(os.path.join(self.DATASET_PATH), exist_ok=True)
         self.dataset.to_csv(self.dataset_path, index=False)
         
     def _haversine(self, lat1, lon1, lat2, lon2):
@@ -221,7 +226,7 @@ class MeteoData:
         """
         result_list = []
 
-        for _, row in self.input_dataframe.iterrows():
+        for _, row in tqdm(self.input_dataframe.iterrows()):
             result_list1 = []
             result_list2 = []
             if self._has_any_error(row): continue
@@ -263,6 +268,7 @@ class MeteoData:
         self._save_dataset()
 
         result_dataframe = pd.DataFrame(result_list)
+        print(result_dataframe.head())
         return result_dataframe
 
 # Example:

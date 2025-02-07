@@ -27,6 +27,9 @@ from typing import Iterator
 import kagglehub
 import shutil
 
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+from Meteo.meteo_forecast import MeteoDataProcessor, MeteoData
+
 # Constantes de entrada, salida, y formato de datos
 INPUT = "Data"
 OUTPUT = "output"
@@ -310,6 +313,7 @@ class data_preprocessing():
     - original (pd.DataFrame): El DataFrame original cargado desde el archivo.
     - dataset (pd.DataFrame): El DataFrame procesado después de eliminar las columnas innecesarias y convertir tipos.
     - normaliced (pd.DataFrame): El DataFrame con los datos normalizados.
+    - meteo_data_columns_needed (tuple[str]): Tupla con las columnas necesarias para juntar el DataFrame con los datos Meteorológicos.
 
     Methods:
     - get_processed_dataset: Retorna el DataFrame procesado.
@@ -319,9 +323,12 @@ class data_preprocessing():
     - save_preprocessed_dataset: Guarda el DataFrame procesado en un archivo.
     - save_normaliced_dataset: Guarda el DataFrame normalizado en un archivo.
     - save_original_dataset: Guarda el DataFrame original en un archivo.
+    - get_dataset_with_meteo_data: Devuelve el DataFrame con los datos meteorológicos anexados (datos sin tratar).
     """
 
-    def __init__(self, input: str = INPUT, dataset: str = DATASET, file_name: str = "Dataset", download: str = DOWNLOAD) -> None:
+    meteo_data_columns_needed = ('Org_latitude', 'Org_longitude','Des_latitude', 'Des_longitude')
+
+    def __init__(self, input: str = INPUT, dataset: str = DATASET, file_name: str = "Dataset", download: str = DOWNLOAD, meteo_data_processor: MeteoDataProcessor = MeteoData) -> None:
         """
         Inicializa la clase y comienza el procesamiento de datos.
 
@@ -341,6 +348,7 @@ class data_preprocessing():
         spinner_thread.start()
         
         # Descarga del dataset des de Kaggle
+        self.meteo_data_processor = meteo_data_processor
         _download_dataset(input=input, download=download, dataset=dataset)
 
         # Procesamiento de datos (simulado aquí con una secuencia de operaciones)
@@ -470,6 +478,32 @@ class data_preprocessing():
         if format == "xlsx":
             self.original.to_excel(path, index=False)
 
+    def get_dataset_with_meteo_data(self, df: pd.DataFrame, columns_date: tuple[str,str] = ('trip_start_date','actual_eta')) -> pd.DataFrame:
+        if not all(column in df.columns for column in self.meteo_data_columns_needed):
+            raise KeyError
+        if not all(column in df.columns for column in columns_date):
+            raise KeyError
+
+
+        df = df[df.index < 1000]
+
+        auxiliar_df = pd.DataFrame()
+        auxiliar_df["ID"] = df.index.to_list()
+
+        for col in self.meteo_data_columns_needed:
+            auxiliar_df[col] = df[col].to_list()
+
+        for col in columns_date:
+            auxiliar_df[col] = pd.to_datetime(df[col], errors='coerce', unit='s').to_list()
+
+        auxiliar_df.columns = ['ID', 'latitude', 'longitude', 'latitudedest', 'longitudedest', 'startdate', 'enddate']
+        auxiliar_df.index = df.index
+
+        meteo_df = self.meteo_data_processor(auxiliar_df).fetch_weather_data()
+        print(meteo_df.head())
+        exit()
+        return df.merge(meteo_df[["ID","weather_code", "temperature_max","temperature_min"]], how='left').drop(columns="ID", inplace=True)
+
 
 # Bloque principal para ejecutar el preprocesamiento  y ejemplo de uso de la classe data_preprocessing
 if __name__ == '__main__':
@@ -478,3 +512,6 @@ if __name__ == '__main__':
     subset = df[df["supplierID_999"] == True]  # Filtrar por una condición
     original_data = dp.get_original_data(subset.index)  # Obtener los datos originales correspondientes
     dp.save_preprocessed_dataset(name="procesed")
+
+    df = dp.get_dataset_with_meteo_data(dp.get_processed_dataset())
+    df.to_csv("aaaaa.csv")

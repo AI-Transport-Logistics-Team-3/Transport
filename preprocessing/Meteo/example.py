@@ -8,7 +8,7 @@ import pandas as pd
 # from datetime import datetime
 # from typing import Iterator
 from sklearn.preprocessing import LabelEncoder
-from Meteo.meteo_forecast import MeteoData
+from meteo_forecast import MeteoData
 from math import radians, sin, cos, sqrt, atan2
 
 DATASET = "Delivery truck trip data.xlsx"
@@ -135,5 +135,3 @@ df.drop(["GpsProvider", "BookingID", "vehicle_no", "Origin_Location", "Destinati
 
 path = "C:\\Sonia\\ProyectoFinal\\Transport\\output\\clean_dataset.csv"
 df.to_csv(path, index=False)
-Clean_dataset.py
-Mostrando Clean_dataset.py.

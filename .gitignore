@@ -1,7 +1,7 @@
 
 # Generated Files
 output/*
-Data/*
+*.sqlite
 
 # Cache
 __pycache__
