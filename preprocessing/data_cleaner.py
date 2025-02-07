@@ -259,6 +259,27 @@ def normalice_dataset(df: pd.DataFrame) -> pd.DataFrame:
             df[c] = (df[c] - df[c].mean()) / df[c].std()  # Normalización Z-score
     return df
 
+# Función para eliminar las columnas que no tengas "suficientes" datos
+def delete_not_enough_data_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Elimina las columnas del DataFrame que tienen menos del 5% de valores no nulos.
+
+    Parameters:
+    - df (pd.DataFrame): El DataFrame a procesar.
+
+    Returns:
+    - pd.DataFrame: El DataFrame sin las columnas con datos insuficientes.
+    """
+    (rows, columns) = df.shape  # Obtener el número de filas y columnas del DataFrame
+
+    for col in df.columns:
+        # Calcular la proporción de valores no nulos en la columna
+        if (df[col].notna().sum()) / rows < 0.05:
+            df.drop(columns=col, inplace=True)  # Eliminar la columna si tiene menos del 5% de valores no nulos
+    
+    return df
+
+
 # Función para mostrar un spinner mientras se ejecuta el procesamiento
 def _spinner(stop_event) -> None:
     """
@@ -329,6 +350,8 @@ class data_preprocessing():
         df = change_to_datetime(df)  # Convertir las fechas a timestamp
         df = change_longitude_altitude(df)  # Separar coordenadas de latitud y longitud
         df = change_categoricall_to_numerical(df)  # Convertir columnas categóricas a numéricas
+        df = delete_not_enough_data_columns(df) # Quitamos las columnas que no tengan suficcientes datos
+        df.dropna(inplace=True) # Eliminamos las filas que contienen algun valor nulo 
         self.dataset = df.copy()  # Guardar el dataset procesado
         df = df.replace({True: 1, False: 0})  # Reemplazar valores booleanos por enteros
         df = normalice_dataset(df)  # Normalizar las columnas numéricas
