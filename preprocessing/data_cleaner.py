@@ -478,26 +478,42 @@ class data_preprocessing():
         if format == "xlsx":
             self.original.to_excel(path, index=False)
 
-    def get_dataset_with_meteo_data(self, df: pd.DataFrame, columns_date: tuple[str,str] = ('trip_start_date','actual_eta')) -> pd.DataFrame:
-        if not all(column in df.columns for column in self.meteo_data_columns_needed):
-            raise KeyError ("El dataset no contiene alguna de las columnas neecsarias, se han de llamar %s" %self.meteo_data_columns_needed)
-        if not all(column in df.columns for column in columns_date):
-            raise KeyError ("El dataset no contiene alguna de las columnas introducidas, las columnas del dataset son %s" %df.columns)
+    def get_dataset_with_meteo_data(self, df: pd.DataFrame, columns_date: tuple[str, str] = ('trip_start_date', 'actual_eta')) -> pd.DataFrame:
+        """
+        Enriquece un DataFrame con datos meteorológicos basados en información de latitud, longitud y fechas.
 
+        Parameters:
+        - df (pd.DataFrame): DataFrame de entrada que debe contener las columnas necesarias.
+        - columns_date (tuple[str, str]): Nombres de las columnas en df que contienen las fechas relevantes. 
+        Por defecto, se asumen 'trip_start_date' y 'actual_eta'.
+
+        Returns:
+        - pd.DataFrame: DataFrame original enriquecido con las columnas meteorológicas añadidas.
+
+        Raises:
+        - KeyError: Si el DataFrame no contiene alguna de las columnas necesarias para la obtención de datos meteorológicos.
+        - KeyError: Si el DataFrame no contiene las columnas de fecha indicadas.
+
+        """
+        if not all(column in df.columns for column in self.meteo_data_columns_needed):
+            raise KeyError("El dataset no contiene alguna de las columnas necesarias, se han de llamar %s" % self.meteo_data_columns_needed)
+        if not all(column in df.columns for column in columns_date):
+            raise KeyError("El dataset no contiene alguna de las columnas introducidas, las columnas del dataset son %s" % df.columns)
+        
         auxiliar_df = pd.DataFrame()
         auxiliar_df["ID"] = df.index
         df["ID"] = df.index
-
+        
         for col in self.meteo_data_columns_needed:
             auxiliar_df[col] = df[col].to_list()
-
+        
         for col in columns_date:
             auxiliar_df[col] = pd.to_datetime(df[col], errors='coerce', unit='s').dt.strftime('%Y-%m-%d').to_list()
-
+        
         auxiliar_df.columns = ['ID', 'latitude', 'longitude', 'latitudedest', 'longitudedest', 'startdate', 'enddate']
-
+        
         meteo_df = self.meteo_data_processor(auxiliar_df).fetch_weather_data()
-        return df.merge(meteo_df[["ID","weather_code", "temperature_max","temperature_min"]], on="ID", how='left').drop(columns="ID")
+        return df.merge(meteo_df[["ID", "weather_code", "temperature_max", "temperature_min"]], on="ID", how='left').drop(columns="ID")
 
 
 # Bloque principal para ejecutar el preprocesamiento  y ejemplo de uso de la classe data_preprocessing
