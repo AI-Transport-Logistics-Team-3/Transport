@@ -268,7 +268,6 @@ class MeteoData(MeteoDataProcessor):
         self._save_dataset()
 
         result_dataframe = pd.DataFrame(result_list)
-        print(result_dataframe.head())
         return result_dataframe
 
 # Example:

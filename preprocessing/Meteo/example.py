@@ -33,7 +33,7 @@ def haversine(lat1, lon1, lat2, lon2):
 
 
 
-ruta_file = "C:\\Sonia\\ProyectoFinal\\Transport\\Data\\Delivery truck trip data.xlsx"
+ruta_file = "Data\\Delivery truck trip data.xlsx"
 df = pd.read_excel(ruta_file)  # Leer archivo Excel
 df.columns = df.columns.str.rstrip()  # Eliminar espacios en los nombres de las columnas
     

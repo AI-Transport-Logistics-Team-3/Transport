@@ -480,29 +480,24 @@ class data_preprocessing():
 
     def get_dataset_with_meteo_data(self, df: pd.DataFrame, columns_date: tuple[str,str] = ('trip_start_date','actual_eta')) -> pd.DataFrame:
         if not all(column in df.columns for column in self.meteo_data_columns_needed):
-            raise KeyError
+            raise KeyError ("El dataset no contiene alguna de las columnas neecsarias, se han de llamar %s" %self.meteo_data_columns_needed)
         if not all(column in df.columns for column in columns_date):
-            raise KeyError
-
-
-        df = df[df.index < 1000]
+            raise KeyError ("El dataset no contiene alguna de las columnas introducidas, las columnas del dataset son %s" %df.columns)
 
         auxiliar_df = pd.DataFrame()
-        auxiliar_df["ID"] = df.index.to_list()
+        auxiliar_df["ID"] = df.index
+        df["ID"] = df.index
 
         for col in self.meteo_data_columns_needed:
             auxiliar_df[col] = df[col].to_list()
 
         for col in columns_date:
-            auxiliar_df[col] = pd.to_datetime(df[col], errors='coerce', unit='s').to_list()
+            auxiliar_df[col] = pd.to_datetime(df[col], errors='coerce', unit='s').dt.strftime('%Y-%m-%d').to_list()
 
         auxiliar_df.columns = ['ID', 'latitude', 'longitude', 'latitudedest', 'longitudedest', 'startdate', 'enddate']
-        auxiliar_df.index = df.index
 
         meteo_df = self.meteo_data_processor(auxiliar_df).fetch_weather_data()
-        print(meteo_df.head())
-        exit()
-        return df.merge(meteo_df[["ID","weather_code", "temperature_max","temperature_min"]], how='left').drop(columns="ID", inplace=True)
+        return df.merge(meteo_df[["ID","weather_code", "temperature_max","temperature_min"]], on="ID", how='left').drop(columns="ID")
 
 
 # Bloque principal para ejecutar el preprocesamiento  y ejemplo de uso de la classe data_preprocessing
@@ -513,5 +508,5 @@ if __name__ == '__main__':
     original_data = dp.get_original_data(subset.index)  # Obtener los datos originales correspondientes
     dp.save_preprocessed_dataset(name="procesed")
 
-    df = dp.get_dataset_with_meteo_data(dp.get_processed_dataset())
-    df.to_csv("aaaaa.csv")
+    df = dp.get_dataset_with_meteo_data(dp.get_normaliced_dataset())
+    df.to_csv("meteo_normaliced.csv")
