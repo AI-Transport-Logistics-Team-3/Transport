@@ -529,6 +529,6 @@ if __name__ == '__main__':
     df = dp.get_dataset_with_meteo_data(dp.get_normaliced_dataset())
 
     report = sv.analyze(df) # Crear el informe
-    report.show_html("reporte_sweetviz.html") # Guardar como HTML
+    report.show_html("data_report.html") # Guardar como HTML
 
     df.to_csv("meteo_normaliced.csv")
