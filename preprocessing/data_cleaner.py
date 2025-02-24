@@ -27,6 +27,8 @@ from typing import Iterator
 import kagglehub
 import shutil
 
+import sweetviz as sv
+
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from Meteo.meteo_forecast import MeteoDataProcessor, MeteoData
 
@@ -525,4 +527,8 @@ if __name__ == '__main__':
     dp.save_preprocessed_dataset(name="procesed")
 
     df = dp.get_dataset_with_meteo_data(dp.get_normaliced_dataset())
+
+    report = sv.analyze(df) # Crear el informe
+    report.show_html("reporte_sweetviz.html") # Guardar como HTML
+
     df.to_csv("meteo_normaliced.csv")
