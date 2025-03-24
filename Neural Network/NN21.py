@@ -34,10 +34,13 @@ from scipy.stats import chi2_contingency
 import itertools
 
 #OPTIMAL_THRESHOLD =  0.3710 #0.3028#0.3713
-CONF = "BestModels" #LoadModel, AutoML, BestModels
-DATASET = "C:\Sonia\ProyectoFinal\Transport\Neural Network\clean_dataset.csv"
-WEIGHT_PATH = "C:\\Sonia\\ProyectoFinal\\Transport\\enhanced_nn_model.pth"
+CONF = "BestModels" #LoadModel, AutoML, BestModels,OneModel
+DATASET ="C:\\Sonia\\ProyectoFinal\\Transport\\NeuralNetwork\\clean_dataset_v2.csv"
+WEIGHT_PATH = "C:\\Sonia\ProyectoFinal\\Transport"
 AUTOML_RESULTS = "C:\\Sonia\\ProyectoFinal\\Transport\\output\\miniAutoML_results.csv"
+MODEL = "DelayPredictorWideNN" #"DelayPredictorWideNN"
+SAVE_MODEL = True
+SHOW_GRAPHICS = True
 
 class DelayPredictorNN1(nn.Module):
     def __init__(self, input_dim):
@@ -338,37 +341,85 @@ class DelayPredictorModelWrapper(BaseEstimator, ClassifierMixin):
             X_tensor = torch.tensor(X, dtype=torch.float32)
             outputs = self.model(X_tensor)
             return torch.sigmoid(outputs).numpy() 
-         
+ 
+    def predict_probability_delay(self, X):
+        self.model.train(False)
+        self.model.eval()
+        for module in self.model.modules():
+            if isinstance(module, torch.nn.Dropout):
+                module.p = 0  
+        with torch.no_grad():
+            
+           
+            if isinstance(X, np.ndarray):
+                X_tensor = torch.tensor(X, dtype=torch.float32)
+            else:
+                X_tensor = torch.tensor(X.values, dtype=torch.float32) 
+
+            if X_tensor.ndimension() == 1:
+                X_tensor = X_tensor.unsqueeze(0)  
+
+           
+            outputs = self.model(X_tensor)
+
+            print(outputs.numpy())
+            delay_prob = torch.sigmoid(outputs).numpy()
+            delay = (delay_prob >= self.threshold).astype(int)
+        
+            return delay, delay_prob
+
+    def predict_single(self, X):
+        self.model.eval()
+        with torch.no_grad():
+            if isinstance(X, np.ndarray):
+                X_tensor = torch.tensor(X, dtype=torch.float32)
+            else:
+                X_tensor = torch.tensor(X.values, dtype=torch.float32)
+
+            if X_tensor.ndimension() == 1:
+                X_tensor = X_tensor.unsqueeze(0)  
+
+            outputs = self.model(X_tensor)
+            delay_prob = torch.sigmoid(outputs).numpy()
+            delay = (delay_prob >= self.threshold).astype(int)
+
+            return bool(delay[0][0]), f"{delay_prob[0][0]*100:.2f}%"
+
+
+
     def save_model(self, path):
         torch.save(self.model.state_dict(), path)
 
     def load_model(self, path):
-        self.model.load_state_dict(torch.load(path))
-        self.model.eval()
+
+        self.model.load_state_dict(torch.load(path, map_location=torch.device('cpu')))
+        self.model.eval()  
+        print(f"Modelo cargado desde {path}")
+
 
 class ModelTrainer:
     def __init__(self, df, model_class, weight_path="", lr=0.001, weight_decay = 0.00001, epochs = 70, threshold=0.5):
-        print("Distribución de clases:", Counter(df['ontime_delay']))
 
-        self.scaler = RobustScaler()#StandardScaler()
+        self.scaler = StandardScaler() 
         self.feature_names = ['distance', 'Org_latitude', 'Org_longitude', 'Des_latitude', 'Des_longitude', 'MT',
                          'weather_code', 'temperature_max', 'temperature_min', 'planned_day_of_week',
-                         'actual_day_of_week', 'planned_hour', 'actual_hour', 'planned_month', 'actual_month','vehicleType', 'customerID', 'supplierID', 'Material Shipped', 'origin_state', 'dest_state']
+                          'planned_hour', 'planned_month', 'vehicleType_lbl', 'customerID_lbl', 'supplierID_lbl', 'Material Shipped_lbl', 'origin_state_lbl', 'dest_state_lbl']
 
         self.df_original = df.copy()
         self.X = self.scaler.fit_transform(df[self.feature_names])
-        self.y_delay = df['ontime_delay'].values.reshape(-1, 1)
-        
-
-        self.X_train, self.X_val, self.y_train_delay, self.y_val_delay = train_test_split(
-            self.X, self.y_delay, test_size=0.3, random_state=42)
-
-        base_model = model_class(input_dim=self.X_train.shape[1])
-        self.model = DelayPredictorModelWrapper(base_model, lr=lr, weight_decay = weight_decay, epochs = epochs, threshold=threshold)
-
         if weight_path and os.path.exists(weight_path):
+            base_model = model_class(input_dim=self.X.shape[1])
+            self.model = DelayPredictorModelWrapper(base_model, lr=lr, weight_decay = weight_decay, epochs = epochs, threshold=threshold)
             self.model.load_model(weight_path)
             print(f"Model weights loaded from {weight_path}")
+            
+        else:
+            self.y_delay = df['ontime_delay'].values.reshape(-1, 1)
+            self.X_train, self.X_val, self.y_train_delay, self.y_val_delay = train_test_split(
+                 self.X, self.y_delay, test_size=0.3, random_state=42)
+            base_model = model_class(input_dim=self.X_train.shape[1])
+            self.model = DelayPredictorModelWrapper(base_model, lr=lr, weight_decay = weight_decay, epochs = epochs, threshold=threshold)
+
 
 
     def train(self):
@@ -377,29 +428,26 @@ class ModelTrainer:
     def evaluate(self):
         predictions = self.model.predict(self.X_val)
         accuracy = accuracy_score(self.y_val_delay, predictions)
-        print("============================================")
-        print(self.model.model.__class__.__name__)
-        print("============================================")
-        print(f"Validation Accuracy: {accuracy:.4f}")
-        print(classification_report(self.y_val_delay, predictions))
-        self.explain_model()
-        importance_delay = self.feature_importance_permutation()
-        self.plot_confusion_matrix(self.y_val_delay, predictions)
-        self.plot_roc_curve(self.y_val_delay, self.model.predict_probability(self.X_val))
+
+        if SHOW_GRAPHICS:
+            self.explain_model()
+            importance_delay = self.feature_importance_permutation()
+            self.plot_confusion_matrix(self.y_val_delay, predictions)
+            self.plot_roc_curve(self.y_val_delay, self.model.predict_probability(self.X_val))
         return self.calculate_metrics(self.y_val_delay, predictions)
         
     def calculate_metrics(self, y_true, y_pred):
         tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
-        tnr = tn / (tn + fp)  # Specificity or True Negative Rate
-        ppv = tp / (tp + fp)  # Precision or Positive Predictive Value
-        npv = tn / (tn + fn) if (tn + fn) > 0 else 0 # Negative Predictive Value
-        recall = tp / (tp + fn) # Recall or True Positive Rate
+        tnr = tn / (tn + fp)  
+        ppv = tp / (tp + fp)  
+        npv = tn / (tn + fn) if (tn + fn) > 0 else 0 
+        recall = tp / (tp + fn) 
         accuracy= accuracy_score(y_true, y_pred)
         balanced_accuracy = balanced_accuracy_score(y_true, y_pred)
         kappa = cohen_kappa_score(y_true, y_pred)
         n = fp + fn
         if n > 0:
-            chi2, p = chi2_contingency([[fp, fn], [fn, fp]])[:2]  # Use chi2_contingency for correct p-value
+            chi2, p = chi2_contingency([[fp, fn], [fn, fp]])[:2]  
             print(f"\nMcNemar's Test: Chi-squared = {chi2:.4f}, p-value = {p:.4f}")
         else:
             print("\nMcNemar's Test: Not applicable (no discordant pairs).")
@@ -410,14 +458,6 @@ class ModelTrainer:
         optimal_threshold_idx = np.argmax(youden_index)
         optimal_threshold = thresholds[optimal_threshold_idx]
 
-        print("\nAdditional Metrics:")
-        print(f"Accuracy: {accuracy_score(y_true, y_pred):.4f}") 
-        print(f"Recall (Sensitivity): {recall:.4f}") 
-        print(f"Specificity: {tnr:.4f}")
-        print(f"PPV (Precision): {ppv:.4f}")
-        print(f"NPV: {npv:.4f}") 
-        print(f"Balanced Accuracy: {balanced_accuracy:.4f}")
-        print(f"Kappa Index: {kappa:.4f}")
 
         return {
             'Model': self.model.model.__class__.__name__,
@@ -455,7 +495,7 @@ class ModelTrainer:
         plt.ylim([0.0, 1.05])
         plt.xlabel('False Positive Rate')
         plt.ylabel('True Positive Rate')
-        #plt.title('Receiver Operating Characteristic')
+  
         plt.title(self.model.model.__class__.__name__)
         plt.legend(loc="lower right")
         plt.show()
@@ -514,15 +554,20 @@ class ModelTrainer:
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['No Delay', 'Delay'], yticklabels=['No Delay', 'Delay'])
         plt.xlabel('Predicted')
         plt.ylabel('Actual')
-        #plt.title('Confusion Matrix')
+
         plt.title(self.model.model.__class__.__name__)
         plt.show()
 
+    def predict_single_observation(self, X_single):
+        X_scaled = self.scaler.transform(np.array(X_single).reshape(1, -1))
+        return self.model.predict_single(X_scaled)
 
 def run_model(df, model_class, lr=0.001, weight_decay = 0.00001, epochs = 70, threshold = 0.5 ):
     trainer = ModelTrainer(df, model_class, lr=lr, weight_decay = weight_decay, epochs = epochs, threshold=threshold)
     trainer.train()
     results.append(trainer.evaluate())
+    model_name = f"weighs_{model_class.__name__}.pth"
+    if SAVE_MODEL: trainer.model.save_model(model_name)
 
 def show_results():
     results_df = pd.DataFrame(results)
@@ -541,17 +586,58 @@ def calculate_score(df):
     df["Score"] = (df["Recall_norm"] * 0.5) + (df["BalancedAcc_norm"] * 0.3) + (df["AUC_norm"] * 0.2)
 
 def best_models(df):
-
     df_bestmodel = df.groupby("Model").apply(lambda x: x.nlargest(2, "Score")).reset_index(drop=True)
     df_bestmodel.to_csv("C:\\Sonia\\ProyectoFinal\\Transport\\output\\best_models.csv", index=False)
-  
-    return 
 
+
+Path = f"{WEIGHT_PATH}\weighs_{MODEL}.pth"
 df = pd.read_csv(DATASET)
 
 results = []
 if CONF=="LoadModel":
-    trainer = ModelTrainer(df,WEIGHT_PATH)
+    Path = f"{WEIGHT_PATH}\weighs_{MODEL}.pth"
+    columns = ['distance', 'Org_latitude', 'Org_longitude', 'Des_latitude', 'Des_longitude', 'MT',
+           'weather_code', 'temperature_max', 'temperature_min', 'planned_day_of_week',
+            'planned_hour',  'planned_month', 
+           'vehicleType_lbl', 'customerID_lbl', 'supplierID_lbl', 'Material Shipped_lbl', 'origin_state_lbl', 'dest_state_lbl']
+
+    # Valores de la fila
+    values = [100, 12.8390,79.9540, 12.74, 77.82, 0,
+          63, 33, 24, 4,
+           16,  8, 44, 0, 316, 147, 15, 14]
+    values = [100, 80.196, 13.155, 12.8390,79.9540, 0,
+          63, 33, 24, 4,
+           16,  8, 44, 0, 316, 147, 15, 14]
+    
+    # Crear el DataFrame
+    DATASET2 ="\\NeuralNetwork\\selecciona.csv"
+    df = pd.read_csv(DATASET2)
+
+    df2 = df.iloc[99:100]
+    print(df2)
+    df2 = df2[columns].reset_index(drop=True)
+    trainer = ModelTrainer(df2, DelayPredictorWideNN, weight_path=Path)
+    print("Pesos de la primera capa:", trainer.model.model.fc1.weight)
+
+
+    sample_input = df.iloc[0][trainer.feature_names].values
+    print(sample_input)
+    prediction = trainer.predict_single_observation(sample_input)
+    print("Predicción para una observación:", prediction)
+
+    sample_input = df.iloc[1][trainer.feature_names].values
+    print(sample_input)
+    prediction = trainer.predict_single_observation(sample_input)
+    print("Predicción para una observación:", prediction)
+
+    sample_input = df.iloc[99:100][trainer.feature_names].values
+    print(sample_input)
+    prediction = trainer.predict_single_observation(sample_input)
+    print("Predicción para una observación:", prediction)  
+    #print(df_result)
+
+elif CONF == "OneModel":
+    run_model(df, DelayPredictorWideNN, lr=0.01, weight_decay = 0.00001, epochs = 70, threshold=0.371)
 elif CONF=="BestModels":	
     run_model(df, DelayPredictorNN1, lr=0.1, weight_decay = 0.001, epochs = 100, threshold=0.34)
     run_model(df, DelayPredictorNN2, lr=0.1, weight_decay = 0.0001, epochs = 100, threshold=0.5)
@@ -574,21 +660,13 @@ elif CONF=="AutoML":
         run_model(df, DelayPredictorNN2, lr=lr, weight_decay = weight_decay, epochs = epoch, threshold=threshold)
         run_model(df, DelayPredictorNN3, lr=lr, weight_decay = weight_decay, epochs = epoch, threshold=threshold)
         run_model(df, DelayPredictorWideNN, lr=lr, weight_decay = weight_decay, epochs = epoch, threshold=threshold)
+        run_model(df, DelayPredictorWideNN, lr=lr, weight_decay = weight_decay, epochs = epoch, threshold=threshold)
         run_model(df, DelayPredictorResNet, lr=lr, weight_decay = weight_decay, epochs = epoch, threshold=threshold)
         run_model(df,DelayPredictorResNet2, lr=lr, weight_decay = weight_decay, epochs = epoch, threshold=threshold)
         run_model(df,DelayPredictorDenseNet, lr=lr, weight_decay = weight_decay, epochs = epoch, threshold=threshold)
         run_model(df,DelayPredictorGatedNN, lr=lr, weight_decay = weight_decay, epochs = epoch, threshold=threshold)
         run_model(df, DelayPredictorTransformer, lr=lr, weight_decay = weight_decay, epochs = epoch, threshold=threshold)
         run_model(df, DelayPredictorHybridNN, lr=lr, weight_decay = weight_decay, epochs = epoch, threshold=threshold)
+    show_results()
 else:
     print("Acción desconocida")
-show_results()
-
-
-#trainer.evaluate()
-#trainer.explain_model()
-#importance_delay = trainer.feature_importance_permutation()
-#df_result = trainer.analyze_results()
-#df_result.to_csv("C:\\Sonia\\ProyectoFinal\\Transport\\output\\results.csv")
-#trainer.model.save_model("enhanced_nn_model.pth")
-# trainer.model.load_model("enhanced_nn_model.pth")
